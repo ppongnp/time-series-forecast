@@ -79,36 +79,8 @@ def get_NAV_dataframe(path):
 
 # this is not Stationary ---> mean,var,covar is not constrant over period
 nav = get_NAV_dataframe('time-series-forecast/dataset/NAV-SI-1AM-TG.csv')
-
-nav_diff = nav.diff(periods=1)
-nav_diff = nav_diff[1:]
-
-
-second_diff = nav_diff.diff(periods=1)
-second_diff = second_diff[1:]
-
-
-third_diff = second_diff.diff(periods=1)
-third_diff = third_diff[1:]
-
-
-fourth_diff = third_diff.diff(periods=1)
-fourth_diff = fourth_diff[1:]
-
-fifth_diff = fourth_diff.diff(periods=1)
-fifth_diff = fifth_diff[1:]
-
-six = fifth_diff.diff(periods=1)
-six = six[1:]
-
-seven = six.diff(periods=1)
-seven = seven[1:]
-
-rolling_mean = second_diff.rolling(window=12).std()
-df_log_minus_mean = second_diff - rolling_mean
-df_log_minus_mean.dropna(inplace=True)
-
-x = seven.values
+stationary_nav = get_stationarity(nav)
+x = stationary_nav.values
 
 train_num = round(len(x) * 0.8)
 test_num = round(len(x) * 0.2)

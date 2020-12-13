@@ -44,7 +44,7 @@ def ADF_Stationarity_Test(timeseries):
     #print(dfResults)
     return dfResults
 
-def get_stationarity(dataset):
+def get_stationarity(dataset,showResult=False):
     run = True
     stationnary_set = dataset
     temp = dataset
@@ -55,9 +55,13 @@ def get_stationarity(dataset):
         stationnary_set = temp
         time += 1
         adf = ADF_Stationarity_Test(stationnary_set)
-        
-    
-    return stationnary_set
+        if(adf['ADF Test Statistic'] < adf['Critical Value (1%)'] and adf['P-Value'] < 0.05):
+            run = False
+            if showResult:
+                print("difference time = ", time)
+                print("ADF test")
+                print(adf)
+            return stationnary_set
 
 
 def parser(x):
@@ -82,7 +86,6 @@ nav_diff = nav_diff[1:]
 
 second_diff = nav_diff.diff(periods=1)
 second_diff = second_diff[1:]
-
 
 
 third_diff = second_diff.diff(periods=1)

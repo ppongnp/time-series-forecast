@@ -33,7 +33,7 @@ from tqdm import tqdm_notebook
 
 def ADF_Stationarity_Test(timeseries, printResults = True):
     #Dickey-Fuller test:
-    adfTest = adfuller(timeseries)
+    adfTest = adfuller(timeseries,autolag='AIC')
     pValue = adfTest[1]
     significanceLV = 0.05
     if printResults:

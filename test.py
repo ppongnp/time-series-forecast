@@ -78,40 +78,42 @@ def get_NAV_dataframe(path):
             nav = nav.drop([index])
     return nav
 
+def ARIMA_predict(dataset):
+    x = dataset.values
+    num_train_set = round(len(x) * 0.7)
+    num_test_set = round(len(x) * 0.3)
+    train_set = x[0:num_train_set]
+    test_set = x[num_train_set-1:]
+    history = [x for x in train_set]
+    prediction = list()
+    for t in range(len(test_set)):
+        model = ARIMA(history,order=(1,1,0))
+        model_fit = model.fit(disp=0)
+        output = model_fit.forecast()
+        yhat = output[0]
+        prediction.append(yhat)
+        obs = test_set[t]
+        history.append(obs)
+        #print('predicted=%f, expected=%f' % (yhat, obs))
+
+    error = mean_squared_error(test_set, prediction)
+    print('Test MSE: %.5f' % error)
+
+    forecast_errors = [test_set[i]-prediction[i] for i in range(len(test_set))]
+    bias = sum(forecast_errors) * 1.0/len(test_set)
+    print('Bias: %f' % bias)
+
+    plt.plot(test_set)
+    plt.plot(prediction,color='red')
+    plt.show()
+
+
+
 # this is not Stationary ---> mean,var,covar is not constrant over period
 nav = get_NAV_dataframe('time-series-forecast/dataset/NAV-SI-TMBEGRMF.csv')
 stationary_nav = get_stationarity(nav)
-x = stationary_nav.values
+ARIMA_predict(stationary_nav)
 
-train_num = round(len(x) * 0.7)
-test_num = round(len(x) * 0.3)
-
-train_set = x[0:train_num]
-test_set = x[train_num-1:]
-
-
-history = [x for x in train_set]
-prediction = list()
-for t in range(len(test_set)):
-    model = ARIMA(history,order=(1,1,0))
-    model_fit = model.fit(disp=0)
-    output = model_fit.forecast()
-    yhat = output[0]
-    prediction.append(yhat)
-    obs = test_set[t]
-    history.append(obs)
-    #print('predicted=%f, expected=%f' % (yhat, obs))
-
-error = mean_squared_error(test_set, prediction)
-print('Test MSE: %.5f' % error)
-
-forecast_errors = [test_set[i]-prediction[i] for i in range(len(test_set))]
-bias = sum(forecast_errors) * 1.0/len(test_set)
-print('Bias: %f' % bias)
-
-plt.plot(test_set)
-plt.plot(prediction,color='red')
-plt.show()
 
 """
 tototo = []

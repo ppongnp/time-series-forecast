@@ -69,10 +69,18 @@ def get_stationarity(timeseries):
 def parser(x):
     return datetime.strptime(x,'%Y-%m-%d')
 
+def get_NAV_dataframe(path):
+    check = datetime.strptime('2018-1-1','%Y-%m-%d')
+    nav = pd.read_csv(path,index_col=2,parse_dates=[2],date_parser=parser)
+    del nav['amount']
+    del nav['fund_code']
+    for index in nav.index: 
+        if index < check:
+            nav = nav.drop([index])
+    return nav
+
 # this is not Stationary ---> mean,var,covar is not constrant over period
-nav = pd.read_csv('dataset/NAV-SI-1AM-TG.csv',index_col=2,parse_dates=[2],date_parser=parser)
-del nav['amount']
-del nav['fund_code']
+nav = get_NAV_dataframe('time-series-forecast/dataset/NAV-SI-1AM-TG.csv')
 
 nav_diff = nav.diff(periods=1)
 nav_diff = nav_diff[1:]
@@ -98,9 +106,6 @@ six = six[1:]
 seven = six.diff(periods=1)
 seven = seven[1:]
 
-ADF_Stationarity_Test(third_diff)
-plt.plot(third_diff)
-plt.show()
 rolling_mean = second_diff.rolling(window=12).std()
 df_log_minus_mean = second_diff - rolling_mean
 df_log_minus_mean.dropna(inplace=True)

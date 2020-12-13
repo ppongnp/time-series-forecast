@@ -86,18 +86,20 @@ def ARIMA_predict(dataset):
     test_set = x[num_train_set-1:]
     history = [x for x in train_set]
     prediction = list()
+    residual = []
     for t in range(len(test_set)):
         model = ARIMA(history,order=(1,1,0))
-        model_fit = model.fit(disp=0)
+        model_fit = model.fit(disp=0,transparams=False)
         output = model_fit.forecast()
         yhat = output[0]
         prediction.append(yhat)
         obs = test_set[t]
         history.append(obs)
-        #print('predicted=%f, expected=%f' % (yhat, obs))
+        residual.append(obs-yhat)
+        print('predicted=%f, expected=%f' % (yhat, obs))
 
     error = mean_squared_error(test_set, prediction)
-    print('Test MSE: %.5f' % error)
+    print('Test MSE: ' , error)
 
     forecast_errors = [test_set[i]-prediction[i] for i in range(len(test_set))]
     bias = sum(forecast_errors) * 1.0/len(test_set)
@@ -105,15 +107,31 @@ def ARIMA_predict(dataset):
 
     plt.plot(test_set)
     plt.plot(prediction,color='red')
+    
+    residual = pd.DataFrame(residual)
+    residual.hist()
+    residual.plot()
+    plot_acf(residual)
     plt.show()
 
 
+
+def find_ARIMA_order(dataset):
+    stepwise_model = auto_arima(dataset, start_p=1, start_q=1,
+                           max_p=3, max_q=3, m=12,
+                           start_P=0, seasonal=True,
+                           d=1, D=1, trace=True,
+                           error_action='ignore',  
+                           suppress_warnings=True, 
+                           stepwise=True)
+    print(stepwise_model.aic())
 
 # this is not Stationary ---> mean,var,covar is not constrant over period
 nav = get_NAV_dataframe('time-series-forecast/dataset/NAV-SI-TMBEGRMF.csv')
 stationary_nav = get_stationarity(nav)
 ARIMA_predict(stationary_nav)
-
+#plot_acf(stationary_nav)
+#plot_pacf(stationary_nav)
 
 """
 tototo = []

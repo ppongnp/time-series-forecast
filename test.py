@@ -31,40 +31,38 @@ from sklearn.metrics import median_absolute_error, mean_squared_error, mean_squa
 from itertools import product                    # some useful functions
 from tqdm import tqdm_notebook
 
-def ADF_Stationarity_Test(timeseries, printResults = True):
+def ADF_Stationarity_Test(timeseries):
     #Dickey-Fuller test:
     adfTest = adfuller(timeseries,autolag='AIC')
     pValue = adfTest[1]
     significanceLV = 0.05
-    if printResults:
-        dfResults = pd.Series(adfTest[0:4], index=['ADF Test Statistic','P-Value','# Lags Used','# Observations Used'])
-        #Add Critical Values
-        for key,value in adfTest[4].items():
-             dfResults['Critical Value (%s)'%key] = value
-        print('Augmented Dickey-Fuller Test Results:')
-        print(dfResults)
+    dfResults = pd.Series(adfTest[0:4], index=['ADF Test Statistic','P-Value','# Lags Used','# Observations Used'])
+    #Add Critical Values
+    for key,value in adfTest[4].items():
+        dfResults['Critical Value (%s)'%key] = value
+    #print('Augmented Dickey-Fuller Test Results:')
+    #print(dfResults)
+    return dfResults
 
-def get_stationarity(timeseries):
-    
-    # rolling statistics
-    rolling_mean = timeseries.rolling(window=3).mean()
-    rolling_std = timeseries.rolling(window=3).std()
-    
-    # rolling statistics plot
-    original = plt.plot(timeseries, color='blue', label='Original')
-    mean = plt.plot(rolling_mean, color='red', label='Rolling Mean')
-    std = plt.plot(rolling_std, color='black', label='Rolling Std')
-    plt.legend(loc='best')
-    plt.title('Rolling Mean & Standard Deviation')
-    plt.show(block=False)
-    
-    # Dickey–Fuller test:
-    result = adfuller(timeseries['value'])
-    print('ADF Statistic: {}'.format(result[0]))
-    print('p-value: {}'.format(result[1]))
-    print('Critical Values:')
-    for key, value in result[4].items():
-        print('\t{}: {}'.format(key, value))
+def get_stationarity(dataset,showResult=False):
+    run = True
+    stationnary_set = dataset
+    temp = dataset
+    time = 0
+    while(run):
+        temp = stationnary_set.diff(periods=1)
+        temp = temp[1:]
+        stationnary_set = temp
+        time += 1
+        adf = ADF_Stationarity_Test(stationnary_set)
+        if(adf['ADF Test Statistic'] < adf['Critical Value (1%)'] and adf['P-Value'] < 0.05):
+            run = False
+            if showResult:
+                print("difference time = ", time)
+                print("ADF test")
+                print(adf)
+            return stationnary_set
+
 
 def parser(x):
     return datetime.strptime(x,'%Y-%m-%d')
@@ -81,36 +79,8 @@ def get_NAV_dataframe(path):
 
 # this is not Stationary ---> mean,var,covar is not constrant over period
 nav = get_NAV_dataframe('time-series-forecast/dataset/NAV-SI-1AM-TG.csv')
-
-nav_diff = nav.diff(periods=1)
-nav_diff = nav_diff[1:]
-
-
-second_diff = nav_diff.diff(periods=1)
-second_diff = second_diff[1:]
-
-
-third_diff = second_diff.diff(periods=1)
-third_diff = third_diff[1:]
-
-
-fourth_diff = third_diff.diff(periods=1)
-fourth_diff = fourth_diff[1:]
-
-fifth_diff = fourth_diff.diff(periods=1)
-fifth_diff = fifth_diff[1:]
-
-six = fifth_diff.diff(periods=1)
-six = six[1:]
-
-seven = six.diff(periods=1)
-seven = seven[1:]
-
-rolling_mean = second_diff.rolling(window=12).std()
-df_log_minus_mean = second_diff - rolling_mean
-df_log_minus_mean.dropna(inplace=True)
-
-x = seven.values
+stationary_nav = get_stationarity(nav)
+x = stationary_nav.values
 
 train_num = round(len(x) * 0.8)
 test_num = round(len(x) * 0.2)

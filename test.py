@@ -31,40 +31,34 @@ from sklearn.metrics import median_absolute_error, mean_squared_error, mean_squa
 from itertools import product                    # some useful functions
 from tqdm import tqdm_notebook
 
-def ADF_Stationarity_Test(timeseries, printResults = True):
+def ADF_Stationarity_Test(timeseries):
     #Dickey-Fuller test:
     adfTest = adfuller(timeseries,autolag='AIC')
     pValue = adfTest[1]
     significanceLV = 0.05
-    if printResults:
-        dfResults = pd.Series(adfTest[0:4], index=['ADF Test Statistic','P-Value','# Lags Used','# Observations Used'])
-        #Add Critical Values
-        for key,value in adfTest[4].items():
-             dfResults['Critical Value (%s)'%key] = value
-        print('Augmented Dickey-Fuller Test Results:')
-        print(dfResults)
+    dfResults = pd.Series(adfTest[0:4], index=['ADF Test Statistic','P-Value','# Lags Used','# Observations Used'])
+    #Add Critical Values
+    for key,value in adfTest[4].items():
+        dfResults['Critical Value (%s)'%key] = value
+    #print('Augmented Dickey-Fuller Test Results:')
+    #print(dfResults)
+    return dfResults
 
-def get_stationarity(timeseries):
+def get_stationarity(dataset):
+    run = True
+    stationnary_set = dataset
+    temp = dataset
+    time = 0
+    while(run):
+        temp = stationnary_set.diff(periods=1)
+        temp = temp[1:]
+        stationnary_set = temp
+        time += 1
+        adf = ADF_Stationarity_Test(stationnary_set)
+        
     
-    # rolling statistics
-    rolling_mean = timeseries.rolling(window=3).mean()
-    rolling_std = timeseries.rolling(window=3).std()
-    
-    # rolling statistics plot
-    original = plt.plot(timeseries, color='blue', label='Original')
-    mean = plt.plot(rolling_mean, color='red', label='Rolling Mean')
-    std = plt.plot(rolling_std, color='black', label='Rolling Std')
-    plt.legend(loc='best')
-    plt.title('Rolling Mean & Standard Deviation')
-    plt.show(block=False)
-    
-    # Dickey–Fuller test:
-    result = adfuller(timeseries['value'])
-    print('ADF Statistic: {}'.format(result[0]))
-    print('p-value: {}'.format(result[1]))
-    print('Critical Values:')
-    for key, value in result[4].items():
-        print('\t{}: {}'.format(key, value))
+    return stationnary_set
+
 
 def parser(x):
     return datetime.strptime(x,'%Y-%m-%d')
@@ -88,6 +82,7 @@ nav_diff = nav_diff[1:]
 
 second_diff = nav_diff.diff(periods=1)
 second_diff = second_diff[1:]
+
 
 
 third_diff = second_diff.diff(periods=1)

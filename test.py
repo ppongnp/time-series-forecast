@@ -26,9 +26,9 @@ from statsmodels.tsa.ar_model import AR
 
 from sklearn.metrics import r2_score, median_absolute_error, mean_absolute_error
 from sklearn.metrics import median_absolute_error, mean_squared_error, mean_squared_log_error
+from math import log
 
-
-from itertools import product                    # some useful functions
+import itertools                    # some useful functions
 from tqdm import tqdm_notebook
 
 def ADF_Stationarity_Test(timeseries,showResult=False):
@@ -64,9 +64,12 @@ def get_stationarity(dataset,showResult=False):
                 print(adf)
             return stationnary_set
 
-
 def parser(x):
     return datetime.strptime(x,'%Y-%m-%d')
+
+def MAPE(Y_actual,Y_Predicted):
+    mape = np.mean(np.abs((Y_actual - Y_Predicted)/Y_actual))*100
+    return mape
 
 def get_NAV_dataframe(path):
     check = datetime.strptime('2018-1-1','%Y-%m-%d')
@@ -88,7 +91,8 @@ def ARIMA_predict(dataset):
     prediction = list()
     residual = []
     for t in range(len(test_set)):
-        model = ARIMA(history,order=(1,1,0))
+        warnings.filterwarnings("ignore")
+        model = ARIMA(history,order=(3,1,0))
         model_fit = model.fit(disp=0,transparams=False)
         output = model_fit.forecast()
         yhat = output[0]
@@ -96,24 +100,27 @@ def ARIMA_predict(dataset):
         obs = test_set[t]
         history.append(obs)
         residual.append(obs-yhat)
-        print('predicted=%f, expected=%f' % (yhat, obs))
+        #print('predicted=%f, expected=%f' % (yhat, obs))
 
+    error0 = mean_absolute_error(test_set,prediction)
+    print('test MAE: ', error0)
     error = mean_squared_error(test_set, prediction)
-    print('Test MSE: ' , error)
-
-    forecast_errors = [test_set[i]-prediction[i] for i in range(len(test_set))]
-    bias = sum(forecast_errors) * 1.0/len(test_set)
-    print('Bias: %f' % bias)
-
+    print('Test RMSE: ' , error)
+    error2 = MAPE(test_set,prediction)
+    print('Test MAPE: ',error2)
     plt.plot(test_set)
     plt.plot(prediction,color='red')
-    
+    sum1 = 0
+    for item in residual:
+        sum1 += item
+    mean11 = sum1/len(residual)
+    print("mean = ",mean11)
     residual = pd.DataFrame(residual)
     residual.hist()
+    residual.plot.kde()
     residual.plot()
     plot_acf(residual)
     plt.show()
-
 
 
 def find_ARIMA_order(dataset):
@@ -127,11 +134,17 @@ def find_ARIMA_order(dataset):
     print(stepwise_model.aic())
 
 # this is not Stationary ---> mean,var,covar is not constrant over period
-nav = get_NAV_dataframe('time-series-forecast/dataset/NAV-SI-TMBEGRMF.csv')
+nav = get_NAV_dataframe('dataset/NAV-SI-PRINCIPAL GFIXED.csv')
 stationary_nav = get_stationarity(nav)
-ARIMA_predict(stationary_nav)
+
 #plot_acf(stationary_nav)
 #plot_pacf(stationary_nav)
+#plt.show()
+#find_ARIMA_order(stationary_nav)
+ARIMA_predict(stationary_nav)
+
+
+
 
 """
 tototo = []

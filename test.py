@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore")
 from pmdarima import auto_arima
 from statsmodels.graphics.tsaplots import plot_acf,plot_pacf
 from statsmodels.tsa.arima_model import ARIMA
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error,median_absolute_error
 import scipy.stats as scs
 from pandas.plotting import autocorrelation_plot
 from statsmodels.tsa.ar_model import AR
@@ -71,7 +71,7 @@ def MAPE(Y_actual,Y_Predicted):
     mape = np.mean(np.abs((Y_actual - Y_Predicted)/Y_actual))*100
     return mape
 
-def get_NAV_dataframe(path):
+def get_NAV_dataset(path):
     check = datetime.strptime('2018-1-1','%Y-%m-%d')
     nav = pd.read_csv(path,index_col=2,parse_dates=[2],date_parser=parser)
     del nav['amount']
@@ -83,8 +83,8 @@ def get_NAV_dataframe(path):
 
 def ARIMA_predict(dataset):
     x = dataset.values
-    num_train_set = round(len(x) * 0.7)
-    num_test_set = round(len(x) * 0.3)
+    num_train_set = round(len(x) * 0.75)
+    num_test_set = round(len(x) * 0.25)
     train_set = x[0:num_train_set]
     test_set = x[num_train_set-1:]
     history = [x for x in train_set]
@@ -92,7 +92,7 @@ def ARIMA_predict(dataset):
     residual = []
     for t in range(len(test_set)):
         warnings.filterwarnings("ignore")
-        model = ARIMA(history,order=(3,1,0))
+        model = ARIMA(history,order=(1,0,2))
         model_fit = model.fit(disp=0,transparams=False)
         output = model_fit.forecast()
         yhat = output[0]
@@ -115,11 +115,12 @@ def ARIMA_predict(dataset):
         sum1 += item
     mean11 = sum1/len(residual)
     print("mean = ",mean11)
-    residual = pd.DataFrame(residual)
-    residual.hist()
-    residual.plot.kde()
-    residual.plot()
-    plot_acf(residual)
+    residual1 = pd.DataFrame(residual)
+    residual1.hist()
+    residual1.plot.kde()
+    residual1.plot()
+    #plt.plot(mean11,color='red')
+    plot_acf(residual1)
     plt.show()
 
 
@@ -134,13 +135,14 @@ def find_ARIMA_order(dataset):
     print(stepwise_model.aic())
 
 # this is not Stationary ---> mean,var,covar is not constrant over period
-nav = get_NAV_dataframe('dataset/NAV-SI-PRINCIPAL GFIXED.csv')
-stationary_nav = get_stationarity(nav)
+nav = get_NAV_dataset('dataset/NAV-SI-TDEX.csv')
 
+stationary_nav = get_stationarity(nav)
+#plt.plot(stationary_nav)
 #plot_acf(stationary_nav)
 #plot_pacf(stationary_nav)
 #plt.show()
-#find_ARIMA_order(stationary_nav)
+#find_ARIMA_order(nav)
 ARIMA_predict(stationary_nav)
 
 

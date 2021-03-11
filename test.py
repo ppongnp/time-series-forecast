@@ -23,11 +23,14 @@ from sklearn.metrics import mean_squared_error,median_absolute_error
 import scipy.stats as scs
 from pandas.plotting import autocorrelation_plot
 from statsmodels.tsa.ar_model import AR
-
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import r2_score, median_absolute_error, mean_absolute_error
 from sklearn.metrics import median_absolute_error, mean_squared_error, mean_squared_log_error
-from math import log
+from math import log,sqrt
 
+from keras.models import Sequential
+from keras.layers import Dense, Dropout,LSTM
+from keras.optimizers import Adam
 import itertools                    # some useful functions
 from tqdm import tqdm_notebook
 
@@ -137,56 +140,60 @@ def find_ARIMA_order(dataset):
 # this is not Stationary ---> mean,var,covar is not constrant over period
 nav = get_NAV_dataset('dataset/NAV-SI-TDEX.csv')
 
-stationary_nav = get_stationarity(nav)
-#plt.plot(stationary_nav)
-#plot_acf(stationary_nav)
-#plot_pacf(stationary_nav)
-#plt.show()
-#find_ARIMA_order(nav)
-ARIMA_predict(stationary_nav)
+dataset = nav.values
+scaler = MinMaxScaler(feature_range=(0, 1))
+dataset = scaler.fit_transform(dataset)
+
+train_size = int(len(dataset) * 0.70)
+test_size = len(dataset) - train_size
+train, test = dataset[0:train_size,:], dataset[train_size:len(dataset),:]
+print(len(train), len(test))
+
+def create_dataset(dataset, look_back=1):
+	dataX, dataY = [], []
+	for i in range(len(dataset)-look_back-1):
+		a = dataset[i:(i+look_back), 0]
+		dataX.append(a)
+		dataY.append(dataset[i + look_back, 0])
+	return np.array(dataX), np.array(dataY)
 
 
+look_back = 1
+trainX, trainY = create_dataset(train, look_back)
+testX, testY = create_dataset(test, look_back)
+trainX = np.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
+testX = np.reshape(testX, (testX.shape[0], 1, testX.shape[1]))
 
+model = Sequential()
+model.add(LSTM(50, input_shape=(train_size, 1)))
+model.add(Dense(test_size))
+model.compile(loss='mean_squared_error', optimizer='adam')
+model.fit(trainX, trainY, epochs=100, batch_size=1, verbose=2)
 
-"""
-tototo = []
-for i in range(len(prediction)-1):
-    result = test_set[i] - prediction[i]
-    tototo.append(result)
+# make predictions
+trainPredict = model.predict(trainX)
+testPredict = model.predict(testX)
+# invert predictions
+trainPredict = scaler.inverse_transform(trainPredict)
+trainY = scaler.inverse_transform([trainY])
+testPredict = scaler.inverse_transform(testPredict)
+testY = scaler.inverse_transform([testY])
+# calculate root mean squared error
+trainScore = sqrt(mean_squared_error(trainY[0], trainPredict[:,0]))
+print('Train Score: %.2f RMSE' % (trainScore))
+testScore = sqrt(mean_squared_error(testY[0], testPredict[:,0]))
+print('Test Score: %.2f RMSE' % (testScore))
 
+trainPredictPlot = np.empty_like(dataset)
+trainPredictPlot[:, :] = np.nan
+trainPredictPlot[look_back:len(trainPredict)+look_back, :] = trainPredict
+# shift test predictions for plotting
+testPredictPlot = np.empty_like(dataset)
+testPredictPlot[:, :] = np.nan
+testPredictPlot[len(trainPredict)+(look_back*2)+1:len(dataset)-1, :] = testPredict
+# plot baseline and predictions
 
-#plt.plot(test_set)
-#plt.plot(prediction,color='red')
-
-df2 = pd.DataFrame (tototo,columns=['value'])
-df2.plot()
-ADF_Stationarity_Test(df2)
+plt.plot(scaler.inverse_transform(dataset))
+plt.plot(trainPredictPlot)
+plt.plot(testPredictPlot)
 plt.show()
-"""
-
-"""
-model = ARIMA(train_set,order=(1,1,1))
-model_fit = model.fit()
-
-predict = model_fit.predict(start=190,end=237)
-plt.plot(test_set)
-plt.plot(predict,color='red')
-
-"""
-
-
-"""
-count = 0
-for item in nav.updated:
-    date_time_obj = datetime.datetime.strptime(item, '%Y-%m-%d')
-    nav.updated[count] = date_time_obj.date()
-    count += 1
-"""
-
-"""
-rolling_mean = nav.value.rolling(window = 50).mean()
-plt.plot(nav.updated,nav.value,color = 'blue', label = 'Original')
-plt.plot(nav.updated,rolling_mean, color = 'red', label = 'Rolling Mean')
-
-plt.title('Rolling Mean & Rolling Standard Deviation')
-"""

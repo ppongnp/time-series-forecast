@@ -137,63 +137,47 @@ def find_ARIMA_order(dataset):
                            stepwise=True)
     print(stepwise_model.aic())
 
+def timeseries_to_supervised(data,lag=1):
+    df = pd.DataFrame(data)
+    columns = [df.shift(i) for i in range(1,lag+1)]
+    columns.append(df)
+    df = pd.concat(columns,axis=1)
+    df.fillna(0,inplace=True)
+    return df
+
+def difference(dataset, interval=1):
+    diff = list()
+    for i in range(interval,len(dataset)):
+        value = dataset[i] - dataset[i - interval]
+        diff.append(value)
+    return pd.Series(diff)
+
+def inverse_difference(history,yhat,interval=1):
+    return yhat + history[-interval]
+
+def scale(train,test):
+    scaler = MinMaxScaler(feature_range=(-1,1))
+    scaler = scaler.fit(train)
+    train = train.reshape(train.shape[0], train.shape[1])
+    train_scaled = scaler.transform(train)
+	# transform test
+    test = test.reshape(test.shape[0], test.shape[1])
+    test_scaled = scaler.transform(test)
+    return scaler, train_scaled, test_scaled
+ 
+# inverse scaling for a forecasted value
+def invert_scale(scaler, X, value):
+	new_row = [x for x in X] + [value]
+	array = np.array(new_row)
+	array = array.reshape(1, len(array))
+	inverted = scaler.inverse_transform(array)
+	return inverted[0, -1]
+
 # this is not Stationary ---> mean,var,covar is not constrant over period
 nav = get_NAV_dataset('dataset/NAV-SI-TDEX.csv')
 
-dataset = nav.values
-scaler = MinMaxScaler(feature_range=(0, 1))
-dataset = scaler.fit_transform(dataset)
-
-train_size = int(len(dataset) * 0.70)
-test_size = len(dataset) - train_size
-train, test = dataset[0:train_size,:], dataset[train_size:len(dataset),:]
-print(len(train), len(test))
-
-def create_dataset(dataset, look_back=1):
-	dataX, dataY = [], []
-	for i in range(len(dataset)-look_back-1):
-		a = dataset[i:(i+look_back), 0]
-		dataX.append(a)
-		dataY.append(dataset[i + look_back, 0])
-	return np.array(dataX), np.array(dataY)
+x = nav.values
+supervised = timeseries_to_supervised(x,1)
+print(supervised.head())
 
 
-look_back = 1
-trainX, trainY = create_dataset(train, look_back)
-testX, testY = create_dataset(test, look_back)
-trainX = np.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
-testX = np.reshape(testX, (testX.shape[0], 1, testX.shape[1]))
-
-model = Sequential()
-model.add(LSTM(50, input_shape=(train_size, 1)))
-model.add(Dense(test_size))
-model.compile(loss='mean_squared_error', optimizer='adam')
-model.fit(trainX, trainY, epochs=100, batch_size=1, verbose=2)
-
-# make predictions
-trainPredict = model.predict(trainX)
-testPredict = model.predict(testX)
-# invert predictions
-trainPredict = scaler.inverse_transform(trainPredict)
-trainY = scaler.inverse_transform([trainY])
-testPredict = scaler.inverse_transform(testPredict)
-testY = scaler.inverse_transform([testY])
-# calculate root mean squared error
-trainScore = sqrt(mean_squared_error(trainY[0], trainPredict[:,0]))
-print('Train Score: %.2f RMSE' % (trainScore))
-testScore = sqrt(mean_squared_error(testY[0], testPredict[:,0]))
-print('Test Score: %.2f RMSE' % (testScore))
-
-trainPredictPlot = np.empty_like(dataset)
-trainPredictPlot[:, :] = np.nan
-trainPredictPlot[look_back:len(trainPredict)+look_back, :] = trainPredict
-# shift test predictions for plotting
-testPredictPlot = np.empty_like(dataset)
-testPredictPlot[:, :] = np.nan
-testPredictPlot[len(trainPredict)+(look_back*2)+1:len(dataset)-1, :] = testPredict
-# plot baseline and predictions
-
-plt.plot(scaler.inverse_transform(dataset))
-plt.plot(trainPredictPlot)
-plt.plot(testPredictPlot)
-plt.show()

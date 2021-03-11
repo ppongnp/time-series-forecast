@@ -173,11 +173,37 @@ def invert_scale(scaler, X, value):
 	inverted = scaler.inverse_transform(array)
 	return inverted[0, -1]
 
+def fit_lstm(train,batch_size,epoch,neurons):
+    X,y = train[:,0:-1],train[:,-1]
+    print(X)
+    print(y)
+    print(X.shape[0])
+    print(X.shape[1])
+    X = X.reshape(X.shape[0],1,X.shape[1])
+    model = Sequential()
+    model.add(LSTM(neurons, batch_input_shape=(batch_size, X.shape[1], X.shape[2]), stateful=True))
+    model.add(Dense(1))
+    model.compile(loss='mean_squared_error',optimizer='adam')
+    for i in range(epoch):
+        model.fit(X,y,epochs= 1,batch_size=batch_size,verbose=0,shuffle=False)
+        model.reset_states()
+    return model
+
+def forecast_lstm(model,batch_size,X):
+    X = X.reshape(1, 1, len(X))
+    yhat= model.predict(X,batch_size)
+    return yhat[0,0]
+
 # this is not Stationary ---> mean,var,covar is not constrant over period
 nav = get_NAV_dataset('dataset/NAV-SI-TDEX.csv')
 
-x = nav.values
-supervised = timeseries_to_supervised(x,1)
-print(supervised.head())
+raw_value = nav.values
+diff_value = difference(raw_value,1)
 
+supervised = timeseries_to_supervised(diff_value, 1)
+supervised_values = supervised.values
 
+train, test = supervised_values[0:-201], supervised_values[-201:]
+
+scaler, train_scaled, test_scaled = scale(train,test)
+lstm_model = fit_lstm(test_scaled,1,3000,4)
